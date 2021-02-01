@@ -7,7 +7,8 @@ Regardless of which options are selected, the program will print out which exten
 for, the number of directories and files found, and the total line count.
 
 ### Usage:
-`analyze_structure analyze_structure [dir_name] [options]`  
+Command: `analyze_structure analyze_structure [dir_name] [options]`  
+
 Options and arguments for file structure analysis:  
 `dir_name`       : absolute or relative path to directory to analyze (DEFAULT = current working directory)  
 `-a`             : show all directories instead of just those containing files with the correct extension  
@@ -19,6 +20,7 @@ Options and arguments for file structure analysis:
 `-r`             : recurse through all subdirectories  
 `-s`             : include file sizes  
 `-t`             : display graphical file tree  
+
 Ex: `analyze_structure -r -l -s -t -e py txt -id ignoreme -if README.txt`  
 
 ### Customizing Display
