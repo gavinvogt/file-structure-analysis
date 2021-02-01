@@ -13,7 +13,7 @@ Options and arguments for file structure analysis:
 `dir_name`       : absolute or relative path to directory to analyze (DEFAULT = current working directory)  
 `-a`             : show all directories instead of just those containing files with the correct extension  
 `-e [...exts]`   : file extensions to search for (DEFAULT = `py`)  
-`-h`             : print this help message and exit (also --help)  
+`-h`             : print this help message and exit (also `--help`)  
 `-if [...files]` : names of files to ignore (no absolute paths, must include file extension)  
 `-id [...dirs]`  : names of directories to ignore (no absolute paths)  
 `-l`             : long analysis (line count, non-empty line count, char count)  
