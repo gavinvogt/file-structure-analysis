@@ -28,7 +28,7 @@ The important options for customizing the display are `-t`, which displays a tex
 of the file structure, `-a`, which forces the tree to show all subdirectories instead of leaving
 out subdirectories that don't have any files of the specified extension.
 
-### Customizing Data
+### Statistics Shown
 The important options for customizing the data found are `-r`, which tells the program to recurse through
 subdirectories, `-l`, which does a long analysis including non-blank line count and character count in
 addition to the line counts, and `-s`, which tells the program to include the file sizes.
