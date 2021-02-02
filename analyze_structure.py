@@ -9,15 +9,15 @@ directory.
 
 Usage: analyze_structure [directory_name] [options]
 Available options:
--a             : show all directories instead of just those containing files with the correct extension
--e [...exts]   : file extensions to search for (DEFAULT = `py`)
--h             : print help message and exit (also --help)
--if [...files] : names of files to ignore (no absolute paths, must include file extension)
--id [...dirs]  : names of directories to ignore (no absolute paths)
--l             : long analysis (line count, non-blank line count, char count)
--r             : recurse through all subdirectories
--s             : include file sizes
--t             : display graphical file tree
+-a              : show all directories instead of just those containing files with the correct extension
+-e [...exts]    : file extensions to search for (DEFAULT = `py`)
+-h              : print help message and exit (also --help)
+--if [...files] : names of files to ignore (no absolute paths, must include file extension)
+--id [...dirs]  : names of directories to ignore (no absolute paths)
+-l              : long analysis (line count, non-blank line count, char count)
+-r              : recurse through all subdirectories
+-s              : include file sizes
+-t              : display graphical file tree
 '''
 
 # dependencies
@@ -41,9 +41,9 @@ parser.add_argument('dir_name', nargs='?', default=os.getcwd(),
     help='absolute or relative path to directory to analyze')
 parser.add_argument('-e', action='extend', nargs='+', default=[], type=without_leading_period,
     required=False, help='file extensions to search for', metavar='EXT', dest='extensions')
-parser.add_argument('-if', action='extend', nargs='+', default=[], type=os.path.basename,
+parser.add_argument('--if', action='extend', nargs='+', default=[], type=os.path.basename,
     required=False, help='names of files to ignore (must include extension)', metavar='IF', dest='ignore_files')
-parser.add_argument('-id', action='extend', nargs='+', default=[], type=os.path.basename,
+parser.add_argument('--id', action='extend', nargs='+', default=[], type=os.path.basename,
     required=False, help='names of directories to ignore', metavar='ID', dest='ignore_dirs')
 parser.add_argument('-a', action='store_true', required=False,
     help='show all directories instead of just those containing relevant files', dest='show_all')
@@ -346,10 +346,10 @@ class FileCrawler:
     This class will crawl through directories and files, getting the word
     and line counts for each file.
     '''
-    
+
     __slots__ = ('dir_name', 'extensions', 'ignore_files', 'ignore_dirs', 'show_all',
                  'long_analysis', 'recursive', 'show_sizes', 'show_tree')
-    
+
     def __init__(self, *, skip_construction=False, **kwargs):
         '''
         Constructs a new FileCrawler with the provided settings
@@ -368,8 +368,8 @@ class FileCrawler:
         '''
         if not skip_construction:                                    # ARGUMENT NAME / FLAG
             self.dir_name = kwargs.get("dir_name", os.getcwd())      # dir_name
-            self.ignore_files = kwargs.get("ignore_files", set())    # -if
-            self.ignore_dirs = kwargs.get("ignore_dirs", set())      # -id
+            self.ignore_files = kwargs.get("ignore_files", set())    # --if
+            self.ignore_dirs = kwargs.get("ignore_dirs", set())      # --id
             self.extensions = kwargs.get("extensions", set())        # -e
             self.show_all = kwargs.get("show_all", False)            # -a
             self.long_analysis = kwargs.get("long_analysis", False)  # -l
@@ -415,7 +415,7 @@ class FileCrawler:
             print("Total chars:", structure.char_count())
         if self.show_sizes:
             print("Total size:", structure.size(), "bytes")
-    
+
     def validate_arguments(self):
         '''
         Makes sure the crawler has valid arguments to do the crawl
@@ -424,7 +424,7 @@ class FileCrawler:
         if not os.path.isdir(self.dir_name):
             sys.stderr.write(f"Error: {self.dir_name} is not a valid directory path\n")
             sys.exit(1)
-        
+
         # Make sure extensions, ignore_files, and ignore_dirs are sets
         self.ignore_files = set(self.ignore_files)
         self.ignore_dirs = set(self.ignore_dirs)
@@ -490,7 +490,7 @@ class FileCrawler:
         for line in f:
             line = line.strip("\n")
             read_info(line)
-    
+
     def _is_valid_file(self, file_path):
         '''
         Checks if the given file path is valid to read stats of,
@@ -513,7 +513,7 @@ def main():
     parser.parse_args(namespace=fc)
     fc.validate_arguments()
     print(repr(fc))
-    
+
     # Crawl the file structure
     print(f"""Searching for file extensions '.{"', '.".join(fc.extensions)}' ...""")
     fc.crawl()
