@@ -6,18 +6,6 @@ options that modify its behavior. The most important modifier is the -r option,
 which tells the program to recurse through all subdirectories of the given directory.
 If the directory name is not specified, it defaults to use the current working
 directory.
-
-Usage: analyze_structure [directory_name] [options]
-Available options:
--a              : show all directories instead of just those containing files with the correct extension
--e [...exts]    : file extensions to search for (DEFAULT = `py`)
--h              : print help message and exit (also --help)
---if [...files] : names of files to ignore (no absolute paths, must include file extension)
---id [...dirs]  : names of directories to ignore (no absolute paths)
--l              : long analysis (line count, non-blank line count, char count)
--r              : recurse through all subdirectories
--s              : include file sizes
--t              : display graphical file tree
 '''
 
 # dependencies
@@ -33,29 +21,38 @@ def without_leading_period(string):
 # Create the argument parser
 parser = argparse.ArgumentParser(
     description = "Analyze the file structure of a directory for information about the files, such as line count and the visual file tree",
-    epilog = "Defaults to current working directory",
+    epilog = "Defaults to current working directory and always includes directory / file / line counts at minimum",
 )
 
 # Add arguments
 parser.add_argument('dir_name', nargs='?', default=os.getcwd(),
     help='absolute or relative path to directory to analyze')
+parser.add_argument('-r', action='store_true', required=False,
+    help='recurse through all subdirectories', dest='recursive')
+parser.add_argument('-t', action='store_true', required=False,
+    help='display graphical file tree', dest='show_tree')
+parser.add_argument('--fav', action='store_true', required=False,
+    help='favorite settings, acts as shortcut for -rtw (recursive, tree, words)', dest='fav')
 parser.add_argument('-e', action='extend', nargs='+', default=[], type=without_leading_period,
     required=False, help='file extensions to search for', metavar='EXT', dest='extensions')
 parser.add_argument('--if', action='extend', nargs='+', default=[], type=os.path.basename,
     required=False, help='names of files to ignore (must include extension)', metavar='IF', dest='ignore_files')
 parser.add_argument('--id', action='extend', nargs='+', default=[], type=os.path.basename,
     required=False, help='names of directories to ignore', metavar='ID', dest='ignore_dirs')
-parser.add_argument('-a', action='store_true', required=False,
-    help='show all directories instead of just those containing relevant files', dest='show_all')
-parser.add_argument('-l', action='store_true', required=False,
-    help='long analysis including non-blank line count and char count', dest='long_analysis')
-parser.add_argument('-r', action='store_true', required=False,
-    help='recurse through all subdirectories', dest='recursive')
+parser.add_argument('--nb', action='store_true', required=False,
+    help='include non-blank line count in each file', dest='non_blank')
+parser.add_argument('-w', action='store_true', required=False,
+    help='include word count in each file', dest='words')
+parser.add_argument('-c', action='store_true', required=False,
+    help='include character count in each file', dest='chars')
 parser.add_argument('-s', action='store_true', required=False,
     help='include file sizes', dest='show_sizes')
-parser.add_argument('-t', action='store_true', required=False,
-    help='display graphical file tree', dest='show_tree')
-
+parser.add_argument('-l', action='store_true', required=False,
+    help='long analysis, acts as shortcut for --nb -wcs (non-blank, words, chars, and sizes)', dest='long_analysis')
+parser.add_argument('-a', action='store_true', required=False,
+    help='show all directories instead of just those containing relevant files', dest='show_all')
+parser.add_argument('-d', action='store_true', required=False,
+    help='turn on debug mode for debug messages', dest='debug')
 
 class StructureObject(metaclass=abc.ABCMeta):
     '''
@@ -126,6 +123,13 @@ class StructureObject(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def word_count(self):
+        '''
+        Gets the total word count
+        '''
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def char_count(self):
         '''
         Gets the total char count
@@ -181,6 +185,15 @@ class Directory(StructureObject):
         count = 0
         for item in self._items:
             count += item.non_blank_line_count()
+        return count
+    
+    def word_count(self):
+        '''
+        Gets the total word count
+        '''
+        count = 0
+        for item in self._items:
+            count += item.word_count()
         return count
 
     def char_count(self):
@@ -259,7 +272,7 @@ class Directory(StructureObject):
         for item in self._items:
             if isinstance(item, File):
                 self._print_depth(depth)
-                print(item.name + "  " + item.info_string())
+                print(item.name + "  | " + item.info_string())
             elif isinstance(item, Directory):
                 if not recurse:
                     # Just print the directory name
@@ -268,6 +281,24 @@ class Directory(StructureObject):
                 elif recurse and (show_all or item.has_file()):
                     # Have the item recursively print
                     item.print(recurse, show_all, depth)
+    
+    def print_totals(self, show_non_blank, show_words, show_chars, show_sizes):
+        '''
+        Prints out the statistic totals for the directory.
+        show_non_blank: bool, whether to show the total non-blank lines
+        show_words: bool, whether to show the total word count
+        show_chars: bool, whether to show the total char count
+        show_sizes: bool, whether to show the total size
+        '''
+        print("Total lines:", self.line_count())
+        if show_non_blank:
+            print("Total non-blank lines:", self.non_blank_line_count())
+        if show_words:
+            print("Total words:", self.word_count())
+        if show_chars:
+            print("Total chars:", self.char_count())
+        if show_sizes:
+            print("Total size:", self.size(), "bytes")
 
     def _print_depth(self, depth):
         '''
@@ -292,6 +323,7 @@ class File(StructureObject):
         self._name = os.path.basename(file_name)
         self._line_count = kwargs.get('line_count')
         self._non_blank_line_count = kwargs.get('non_blank_line_count')
+        self._word_count = kwargs.get('word_count')
         self._char_count = kwargs.get('char_count')
         self._size = kwargs.get('size')
 
@@ -312,6 +344,12 @@ class File(StructureObject):
         Gets the total non-blank line count
         '''
         return self._non_blank_line_count
+    
+    def word_count(self):
+        '''
+        Gets the total word count
+        '''
+        return self._word_count
 
     def char_count(self):
         '''
@@ -335,11 +373,13 @@ class File(StructureObject):
             info.append(f"{self._line_count} lines")
         if self._non_blank_line_count:
             info.append(f"{self._non_blank_line_count} non-blank lines")
+        if self._word_count:
+            info.append(f"{self._word_count} words")
         if self._char_count:
             info.append(f"{self._char_count} chars")
         if self._size:
             info.append(f"{self._size} bytes")
-        return ", ".join(info)
+        return " | ".join(info)
 
 class FileCrawler:
     '''
@@ -347,8 +387,9 @@ class FileCrawler:
     and line counts for each file.
     '''
 
-    __slots__ = ('dir_name', 'extensions', 'ignore_files', 'ignore_dirs', 'show_all',
-                 'long_analysis', 'recursive', 'show_sizes', 'show_tree')
+    __slots__ = ('dir_name', 'recursive', 'show_tree', 'fav', 'ignore_files',
+                 'ignore_dirs', 'extensions', 'non_blank', 'words', 'chars',
+                 'show_sizes', 'long_analysis', 'show_all', 'debug')
 
     def __init__(self, *, skip_construction=False, **kwargs):
         '''
@@ -357,25 +398,35 @@ class FileCrawler:
                            meant to delay construction until argparse parses the
                            command line arguments into the object
         kwargs: dir_name      : str, name of directory to crawl
+                recursive     : bool, whether to recurse into subdirectories
+                show_tree     : bool, whether to display the file tree
+                fav           : bool, shortcut for (recursive, show_tree, words) = True
                 ignore_files  : set[str], names of files to ignore
                 ignore_dirs   : set[str], names of directories to ignore
                 extensions    : set[str], file extensions to look for
-                show_all      : bool, whether to show all directories
-                long_analysis : bool, whether to include non-blank line and char counts
-                recursive     : bool, whether to recurse into subdirectories
+                non_blank     : bool, whether to include non-blank line counts
+                words         : bool, whether to include word counts
+                chars         : bool, whether to include char counts
                 show_sizes    : bool, whether to include file sizes
-                show_tree     : bool, whether to display the file tree
+                long_analysis : bool, shortcut for (non_blank, words, chars, show_sizes) = True
+                show_all      : bool, whether to show all directories
+                debug         : bool, whether to include debug messages
         '''
         if not skip_construction:                                    # ARGUMENT NAME / FLAG
             self.dir_name = kwargs.get("dir_name", os.getcwd())      # dir_name
+            self.recursive = kwargs.get("recursive", False)          # -r
+            self.show_tree = kwargs.get("show_tree", False)          # -t
+            self.fav = kwargs.get("fav", False)                      # --fav
             self.ignore_files = kwargs.get("ignore_files", set())    # --if
             self.ignore_dirs = kwargs.get("ignore_dirs", set())      # --id
             self.extensions = kwargs.get("extensions", set())        # -e
-            self.show_all = kwargs.get("show_all", False)            # -a
-            self.long_analysis = kwargs.get("long_analysis", False)  # -l
-            self.recursive = kwargs.get("recursive", False)          # -r
+            self.non_blank = kwargs.get("non_blank", False)          # --nb
+            self.words = kwargs.get("words", False)                  # -w
+            self.chars = kwargs.get("chars", False)                  # -c
             self.show_sizes = kwargs.get("show_sizes", False)        # -s
-            self.show_tree = kwargs.get("show_tree", False)          # -t
+            self.long_analysis = kwargs.get("long_analysis", False)  # -l
+            self.show_all = kwargs.get("show_all", False)            # -a
+            self.debug = kwargs.get("debug", False)                  # -d
             self.validate_arguments()
 
     def __repr__(self):
@@ -409,12 +460,7 @@ class FileCrawler:
         else:
             print()
         print("Total files:", file_count)
-        print("Total lines:", structure.line_count())
-        if self.long_analysis:
-            print("Total non-blank lines:", structure.non_blank_line_count())
-            print("Total chars:", structure.char_count())
-        if self.show_sizes:
-            print("Total size:", structure.size(), "bytes")
+        structure.print_totals(self.non_blank, self.words, self.chars, self.show_sizes)
 
     def validate_arguments(self):
         '''
@@ -432,6 +478,19 @@ class FileCrawler:
         if len(self.extensions) == 0:
             # use `py` as the default extension if none provided
             self.extensions.add("py")
+        
+        # Apply favorite shortcut to recursive, tree, and words
+        if self.fav:
+            self.recursive = True
+            self.show_tree = True
+            self.words = True
+        
+        # Apply long_analysis shortcut to non-blank, words, chars, and sizes
+        if self.long_analysis:
+            self.non_blank = True
+            self.words = True
+            self.chars = True
+            self.show_sizes = True
 
     def _load_dir(self, dir_path):
         '''
@@ -471,25 +530,41 @@ class FileCrawler:
         file_info: dict, to store file information in
         file_path: str, representing the path to the file
         '''
+        # Set up the file_info dictionary
         file_info["line_count"] = 0
-        if self.long_analysis:
+        if self.non_blank:
             file_info["non_blank_line_count"] = 0
+        if self.words:
+            file_info["word_count"] = 0
+        if self.chars:
             file_info["char_count"] = 0
-            def read_info(line):
-                '''Read information with long analysis'''
-                file_info["line_count"] += 1
-                file_info["char_count"] += len(line)
-                if len(line.strip()) > 0:
-                    file_info["non_blank_line_count"] += 1
+        
+        # Read the information from the file
+        try:
+            f = open(file_path, 'r', encoding='utf8')
+        except IOError:
+            if self.debug:
+                sys.stderr.write(f'Error: failed to open file "{file_path}"')
         else:
-            def read_info(line):
-                '''Read information with only line count'''
-                file_info["line_count"] += 1
-
-        f = open(file_path, 'r', encoding='utf8')
-        for line in f:
-            line = line.strip("\n")
-            read_info(line)
+            with f:
+                for line in f:
+                    line = line.strip("\n")
+                    self._read_line(file_info, line)
+    
+    def _read_line(self, file_info, line):
+        '''
+        Reads information from the given line in the file
+        file_info: dict of file information to store
+        line: str, representing the line to read and analyze
+        '''
+        # Increment various counters
+        file_info["line_count"] += 1
+        if self.non_blank and len(line.strip()) > 0:
+            file_info["non_blank_line_count"] += 1
+        if self.words:
+            file_info["word_count"] += len(line.split())
+        if self.chars:
+            file_info["char_count"] += len(line)
 
     def _is_valid_file(self, file_path):
         '''
@@ -500,11 +575,16 @@ class FileCrawler:
         file_path: str, representing the path to the file
         '''
         file_name = os.path.basename(file_path)
-        return (
-            not os.path.samefile(file_path, sys.argv[0])
-            and file_name.split(".")[-1] in self.extensions
-            and file_name not in self.ignore_files
-        )
+        if (not os.path.samefile(file_path, sys.argv[0])
+                and file_name.split(".")[-1] in self.extensions
+                and file_name not in self.ignore_files):
+            # valid file path
+            return True
+        else:
+            # skipping this file
+            if self.debug:
+                print(f'Ignoring file "{file_path}"')
+            return False
 
 
 def main():
@@ -512,7 +592,8 @@ def main():
     fc = FileCrawler(skip_construction=True)
     parser.parse_args(namespace=fc)
     fc.validate_arguments()
-    print(repr(fc))
+    if fc.debug:
+        print(repr(fc), "\n")   # debug message showing crawl settings
 
     # Crawl the file structure
     print(f"""Searching for file extensions '.{"', '.".join(fc.extensions)}' ...""")
