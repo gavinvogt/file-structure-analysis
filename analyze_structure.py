@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 '''
 File: analyze_structure.py
 Author: Gavin Vogt
@@ -13,6 +14,12 @@ import os
 import sys
 import abc
 import argparse
+from tabulate import tabulate
+
+# Check minimum version of Python
+if not sys.version_info >= (3, 8):
+    sys.stderr.write("Error: Python 3.8 or higher required\n")
+    sys.exit(1)
 
 def without_leading_period(string):
     '''Removes leading period from string (`.ext` -> `ext`)'''
@@ -257,30 +264,34 @@ class Directory(StructureObject):
                 count += item.num_hidden()
         return count
 
-    def print(self, recurse, show_all, depth=0):
+    def get_grid(self, recurse, show_all, num_cols, depth=0):
         '''
-        Prints out the structure inside this Directory
+        Outputs the structure inside this Directory, formatted as a grid of strings
         recurse: bool, representating whether to recurse into subdirectories
-        show_all: bool, representing whether to show directories with no files
+        show_all: bool, representing whether to include directories with no files
+        num_cols: int, representing how many columns will be in the grid
         depth: (optional) int, representing the current depth
         '''
-        # Print out the name of the overarching directory
-        self._print_depth(depth)
-        print(self._name + "/")
-
+        # Create the grid
+        grid = []
+        grid.append(self._get_directory_row(self._name, depth, num_cols))
+        
         depth += 1
         for item in self._items:
             if isinstance(item, File):
-                self._print_depth(depth)
-                print(item.name + "  | " + item.info_string())
+                # Adding a file
+                row = [self._get_depth(depth) + item.name]
+                row.extend(item.info_row())
+                grid.append(row)
             elif isinstance(item, Directory):
                 if not recurse:
-                    # Just print the directory name
-                    self._print_depth(depth)
-                    print(item.name + "/")
+                    # Just include the directory name
+                    grid.append(self._get_directory_row(self._name, depth, num_cols))
                 elif recurse and (show_all or item.has_file()):
-                    # Have the item recursively print
-                    item.print(recurse, show_all, depth)
+                    # Add the item recursively
+                    grid.extend(item.get_grid(recurse, show_all, num_cols, depth))
+        
+        return grid
     
     def print_totals(self, show_non_blank, show_words, show_chars, show_sizes):
         '''
@@ -299,16 +310,30 @@ class Directory(StructureObject):
             print("Total chars:", self.char_count())
         if show_sizes:
             print("Total size:", self.size(), "bytes")
-
-    def _print_depth(self, depth):
+    
+    def _get_directory_row(self, dir_name, depth, num_cols):
         '''
-        Prints text to represent the given depth
+        Gets the row representing a directory for the grid
+        dir_name: str, representing the name of the directory
+        depth: int, representing the depth
+        num_cols: int, representing how many columns should be in the row
+        '''
+        row = []
+        row.append(self._get_depth(depth) + dir_name + "/")
+        for i in range(num_cols - 1):
+            row.append(None)
+        return row
+    
+    def _get_depth(self, depth):
+        '''
+        Gets the string with the given depth into the file structure
         depth: int, representing the depth
         '''
-        for i in range(depth - 1):
-            print("|   ", end="")
-        if depth > 0:
-            print("|—— ", end="")
+        if depth == 0:
+            return ""
+        else:
+            depth_str = "|   " * (depth - 1) if depth > 0 else ""
+            return depth_str + "|—— "
 
 
 class File(StructureObject):
@@ -363,10 +388,10 @@ class File(StructureObject):
         '''
         return self._size
 
-    def info_string(self):
+    def info_row(self):
         '''
-        Returns the info string representing the File. Includes all
-        information known about line counts, char counts, and size
+        Returns the list of information representing the File. Includes all
+        information known about line counts, word counts, char counts, and size
         '''
         info = []
         if self._line_count:
@@ -379,7 +404,7 @@ class File(StructureObject):
             info.append(f"{self._char_count} chars")
         if self._size:
             info.append(f"{self._size} bytes")
-        return " | ".join(info)
+        return info
 
 class FileCrawler:
     '''
@@ -448,7 +473,17 @@ class FileCrawler:
         print()
         if self.show_tree:
             # print out the tree
-            structure.print(self.recursive, self.show_all)
+            headers = ["FILE STRUCTURE", "LINES"]
+            if self.non_blank:
+                headers.append("NON-BLANK LINES")
+            if self.words:
+                headers.append("WORDS")
+            if self.chars:
+                headers.append("CHARS")
+            if self.show_sizes:
+                headers.append("SIZES (BYTES)")
+            grid = structure.get_grid(self.recursive, self.show_all, len(headers))
+            print(tabulate(grid, headers, tablefmt="presto"))
             print()
 
         # Print out the totals
