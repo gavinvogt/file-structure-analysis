@@ -193,7 +193,7 @@ class Directory(StructureObject):
         for item in self._items:
             count += item.non_blank_line_count()
         return count
-    
+
     def word_count(self):
         '''
         Gets the total word count
@@ -275,7 +275,7 @@ class Directory(StructureObject):
         # Create the grid
         grid = []
         grid.append(self._get_directory_row(self._name, depth, num_cols))
-        
+
         depth += 1
         for item in self._items:
             if isinstance(item, File):
@@ -290,9 +290,9 @@ class Directory(StructureObject):
                 elif recurse and (show_all or item.has_file()):
                     # Add the item recursively
                     grid.extend(item.get_grid(recurse, show_all, num_cols, depth))
-        
+
         return grid
-    
+
     def print_totals(self, show_non_blank, show_words, show_chars, show_sizes):
         '''
         Prints out the statistic totals for the directory.
@@ -310,7 +310,7 @@ class Directory(StructureObject):
             print("Total chars:", self.char_count())
         if show_sizes:
             print("Total size:", self.size(), "bytes")
-    
+
     def _get_directory_row(self, dir_name, depth, num_cols):
         '''
         Gets the row representing a directory for the grid
@@ -323,7 +323,7 @@ class Directory(StructureObject):
         for i in range(num_cols - 1):
             row.append(None)
         return row
-    
+
     def _get_depth(self, depth):
         '''
         Gets the string with the given depth into the file structure
@@ -369,7 +369,7 @@ class File(StructureObject):
         Gets the total non-blank line count
         '''
         return self._non_blank_line_count
-    
+
     def word_count(self):
         '''
         Gets the total word count
@@ -513,13 +513,13 @@ class FileCrawler:
         if len(self.extensions) == 0:
             # use `py` as the default extension if none provided
             self.extensions.add("py")
-        
+
         # Apply favorite shortcut to recursive, tree, and words
         if self.fav:
             self.recursive = True
             self.show_tree = True
             self.words = True
-        
+
         # Apply long_analysis shortcut to non-blank, words, chars, and sizes
         if self.long_analysis:
             self.non_blank = True
@@ -573,7 +573,7 @@ class FileCrawler:
             file_info["word_count"] = 0
         if self.chars:
             file_info["char_count"] = 0
-        
+
         # Read the information from the file
         try:
             f = open(file_path, 'r', encoding='utf8')
@@ -585,7 +585,7 @@ class FileCrawler:
                 for line in f:
                     line = line.strip("\n")
                     self._read_line(file_info, line)
-    
+
     def _read_line(self, file_info, line):
         '''
         Reads information from the given line in the file
@@ -611,7 +611,7 @@ class FileCrawler:
         '''
         file_name = os.path.basename(file_path)
         if (not os.path.samefile(file_path, sys.argv[0])
-                and file_name.split(".")[-1] in self.extensions
+                and os.path.splitext(file_path)[1] in self.extensions
                 and file_name not in self.ignore_files):
             # valid file path
             return True
