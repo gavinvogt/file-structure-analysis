@@ -610,7 +610,6 @@ class FileCrawler:
         file_path: str, representing the path to the file
         '''
         file_name = os.path.basename(file_path)
-        print("ext:", os.path.splitext(file_path)[1])
         if (not os.path.samefile(file_path, sys.argv[0])
                 and self._get_ext(file_path) in self.extensions
                 and file_name not in self.ignore_files):
